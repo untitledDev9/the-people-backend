@@ -10,7 +10,7 @@ async function loadRaw() {
   const doc = await Settings.findOneAndUpdate(
     { key: "main" },
     { $setOnInsert: { key: "main" } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   ).lean();
   return doc!;
 }

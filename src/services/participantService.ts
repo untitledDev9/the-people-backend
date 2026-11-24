@@ -1,9 +1,9 @@
 import type { QueryFilter as FilterQuery } from "mongoose";
 import { Participant } from "../models/Participant.js";
-import { nextSequence } from "../models/Counter.js";
+import { Counter, nextSequence } from "../models/Counter.js";
 import { AppError } from "../utils/AppError.js";
 import { assertImageSize } from "../middleware/upload.js";
-import { deleteAsset, uploadBuffer, type MediaAsset } from "./mediaService.js";
+import { assertOwnAsset, deleteAsset, uploadBuffer, type MediaAsset } from "./mediaService.js";
 import type { z } from "zod";
 import type { listQuery, participantInput } from "../validators/participant.js";
 
@@ -133,7 +133,53 @@ export async function getById(id: string) {
   return p;
 }
 
+/* ---------- Numbering ---------- */
+
+/**
+ * Numbers are slots 1..N. A number belongs to one person for as long as they exist and never
+ * changes. When someone is deleted their slot becomes EMPTY (nobody shifts down), and the next
+ * person you add fills the lowest empty slot before a brand-new number is handed out.
+ */
+async function slotInfo() {
+  const counter = await Counter.findById("participant").lean();
+  const seq = counter?.seq ?? 0;
+  const used = new Set((await Participant.find({}, { participantNumber: 1 }).lean()).map((p) => p.participantNumber));
+  const vacant: number[] = [];
+  for (let n = 1; n <= seq; n++) if (!used.has(n)) vacant.push(n);
+  return { seq, vacant };
+}
+
+export async function getSlots() {
+  const { seq, vacant } = await slotInfo();
+  return { next: vacant[0] ?? seq + 1, vacant };
+}
+
+/** Creates a participant in the lowest empty slot (or the next new number). Retries on a rare race. */
+export async function createInNextSlot(data: Record<string, unknown>) {
+  for (let attempt = 0; ; attempt++) {
+    const { vacant } = await slotInfo();
+    const participantNumber = vacant[0] ?? (await nextSequence("participant"));
+    try {
+      return await Participant.create({ ...data, participantNumber });
+    } catch (err: any) {
+      if (err?.code === 11000 && err?.keyPattern?.participantNumber && attempt < 4) continue;
+      throw err;
+    }
+  }
+}
+
 /* ---------- Writes ---------- */
+
+/** Files uploaded straight to Cloudinary by the browser (preferred) or sent as multipart. */
+async function resolveMedia(input: Input, files: UploadedFiles) {
+  const portraitAsset = input.portraitAsset ? assertOwnAsset(input.portraitAsset, "image") : undefined;
+  const videoAsset = input.videoAsset ? assertOwnAsset(input.videoAsset, "video") : undefined;
+  const uploaded = await uploadFiles({
+    portrait: portraitAsset ? undefined : files.portrait,
+    video: videoAsset ? undefined : files.video,
+  });
+  return { portrait: portraitAsset ?? uploaded.portrait, video: videoAsset ?? uploaded.video, uploaded };
+}
 
 async function uploadFiles(files: UploadedFiles) {
   let portrait: MediaAsset | undefined;
@@ -178,12 +224,10 @@ export async function createParticipant(input: Input, files: UploadedFiles) {
     }
   }
 
-  // Upload first so a failed upload never burns a participant number.
-  const media = await uploadFiles(files);
+  // Media first, so a failed upload never takes a number.
+  const media = await resolveMedia(input, files);
   try {
-    const participantNumber = await nextSequence("participant"); // atomic $inc, never reused
-    const doc = await Participant.create({
-      participantNumber,
+    const doc = await createInNextSlot({
       displayName: input.displayName,
       biography: input.biography,
       quote: input.quote,
@@ -197,7 +241,8 @@ export async function createParticipant(input: Input, files: UploadedFiles) {
     });
     return toAdmin(doc.toObject());
   } catch (err) {
-    await Promise.all([deleteAsset(media.portrait, "image"), deleteAsset(media.video, "video")]);
+    // Only clean up what THIS request uploaded; browser-uploaded files stay so the form can retry.
+    await Promise.all([deleteAsset(media.uploaded.portrait, "image"), deleteAsset(media.uploaded.video, "video")]);
     throw err;
   }
 }
@@ -211,7 +256,7 @@ export async function updateParticipant(id: string, input: Input, files: Uploade
     throw new AppError(400, "Consent must be confirmed before a participant can be published");
   }
 
-  const media = await uploadFiles(files);
+  const media = await resolveMedia(input, files);
   const oldPortrait = existing.portrait as MediaAsset | null;
   const oldVideo = existing.video as MediaAsset | null;
   const dropPortrait = Boolean(media.portrait) || input.removePortrait;
@@ -234,7 +279,7 @@ export async function updateParticipant(id: string, input: Input, files: Uploade
   try {
     await existing.save();
   } catch (err) {
-    await Promise.all([deleteAsset(media.portrait, "image"), deleteAsset(media.video, "video")]);
+    await Promise.all([deleteAsset(media.uploaded.portrait, "image"), deleteAsset(media.uploaded.video, "video")]);
     throw err;
   }
   // Only remove replaced media once the new state is safely stored.

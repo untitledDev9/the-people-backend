@@ -1,8 +1,9 @@
 import { Schema, model } from "mongoose";
 
 /**
- * Atomic counters. The participant counter only ever increments, so a number
- * that was handed out (even to a later-deleted participant) is never reused.
+ * Atomic counters. The participant counter only ever increments: it is the highest number ever
+ * handed out. Numbers below it that no longer have a person are EMPTY slots, which the next new
+ * person fills first (see createInNextSlot in participantService).
  */
 const counterSchema = new Schema<{ _id: string; seq: number }>({
   _id: { type: String, required: true },
@@ -15,7 +16,7 @@ export async function nextSequence(name: string): Promise<number> {
   const doc = await Counter.findOneAndUpdate(
     { _id: name },
     { $inc: { seq: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true },
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
   ).lean();
   return doc!.seq;
 }

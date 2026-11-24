@@ -8,6 +8,12 @@ const bool = z.preprocess((v) => {
 
 const optionalText = (max: number) => z.string().trim().max(max).optional().default("");
 
+// A file the browser already uploaded straight to Cloudinary (see signUpload).
+const assetInput = z.object({ url: z.string().url().max(600), publicId: z.string().min(1).max(300) });
+
+export const uploadSignInput = z.object({ kind: z.enum(["image", "video"]) });
+export const uploadDiscardInput = z.object({ kind: z.enum(["image", "video"]), publicId: z.string().min(1).max(300) });
+
 export const participantInput = z.object({
   displayName: z.string().trim().min(1, "Display name is required").max(80),
   biography: optionalText(2000),
@@ -20,6 +26,8 @@ export const participantInput = z.object({
   confirmNew: bool.optional().default(false),
   removePortrait: bool.optional().default(false),
   removeVideo: bool.optional().default(false),
+  portraitAsset: assetInput.nullish(),
+  videoAsset: assetInput.nullish(),
 });
 
 export const publishInput = z.object({ isPublished: bool });

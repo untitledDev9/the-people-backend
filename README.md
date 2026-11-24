@@ -40,14 +40,19 @@ The server refuses to start if `MONGODB_URI` or `JWT_SECRET` is missing. Without
 | `npm run build` / `npm start` | Compile to `dist/` and run it |
 | `npm run typecheck` | Type-check only |
 | `npm run create-admin -- <email> "<password>"` | Create or reset the admin (10+ char password, bcrypt hashed). There is no public sign-up |
-| `npm run seed:demo` / `seed:demo:remove` | Add or remove clearly labelled demo people (refuses to run in production). The demo portraits are served by the client from `public/demo/`, so the client repo must be running. Remove demo data before adding real people |
+| `npm run seed:demo` / `seed:demo:remove` | Add or remove 5 clearly labelled demo people (refuses to run in production). Add `-- --base=https://your-site.vercel.app` so their placeholder portraits load from your deployed site. They are real rows, so they appear wherever this database is used. Removing them leaves their numbers empty for your first real people |
 
 ## Participant numbering
 
-- Numbers come from an atomic MongoDB counter (`findOneAndUpdate` + `$inc`) with a unique index, so they can't duplicate.
-- Four digits in the UI (`0001`), never reused. Deleting someone does not free their number.
-- Media is uploaded **before** a number is taken, so a failed upload never burns a number.
+- Each person owns one number (four digits in the UI, `0001`). It never changes while they exist, and nobody is ever renumbered.
+- Deleting someone leaves their number **empty**. The next person you add fills the lowest empty number first; only when there are no empty numbers does a brand-new one get handed out. The admin shows the empty numbers and which one comes next (`GET /api/admin/slots`).
+- A unique index on `participantNumber` plus a retry makes a duplicate number impossible, even with two saves at once.
+- Media is uploaded **before** a number is taken, so a failed upload never takes one.
 - The project counts **unique people**. A name that already exists must be confirmed as a different person, or logged as **returning** (`returnCount` goes up, no new number).
+
+## Uploads
+
+Photos and videos go **straight from the browser to Cloudinary**, not through this server (videos are too big for Vercel/Render request limits). The server only signs the upload (`POST /api/admin/uploads/sign`, the API secret never leaves it) and later checks that the file reference it receives really is in our Cloudinary folder. Large files are sent in 6 MB chunks with retries. Limits are Cloudinary free-plan limits: 10 MB per image, 100 MB per video. Unattached uploads (cancelled or replaced) are removed via `POST /api/admin/uploads/discard`. Videos also get a background H.264 MP4 rendition, because iPhone HEVC .mov files do not play in every browser.
 
 ## Privacy and consent
 

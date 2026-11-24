@@ -8,7 +8,18 @@ import { AUTH_COOKIE, csrfGuard, requireAdmin } from "../middleware/auth.js";
 import { participantUpload, settingsUpload } from "../middleware/upload.js";
 import { AppError } from "../utils/AppError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { listQuery, loginInput, participantInput, publishInput, settingsInput } from "../validators/participant.js";
+import {
+  listQuery,
+  loginInput,
+  participantInput,
+  publishInput,
+  settingsInput,
+  uploadDiscardInput,
+  uploadSignInput,
+} from "../validators/participant.js";
+import { deleteAsset, isOurPublicId, signUpload } from "../services/mediaService.js";
+import { Participant } from "../models/Participant.js";
+import { Settings } from "../models/Settings.js";
 import * as participants from "../services/participantService.js";
 import { adminOverview } from "../services/statsService.js";
 import { getAdminSettings, updateSettings } from "../services/settingsService.js";
@@ -91,6 +102,37 @@ function idParam(raw: string | string[]) {
   if (!isValidObjectId(id)) throw new AppError(400, "Invalid participant id");
   return id;
 }
+
+/** Which number the next person gets, and which numbers are currently empty. */
+adminRouter.get(
+  "/slots",
+  asyncHandler(async (_req, res) => {
+    res.json(await participants.getSlots());
+  }),
+);
+
+/** Signed params so the browser can upload a photo/video straight to Cloudinary. */
+adminRouter.post(
+  "/uploads/sign",
+  asyncHandler(async (req, res) => {
+    res.json(signUpload(uploadSignInput.parse(req.body).kind));
+  }),
+);
+
+/** Remove a browser-uploaded file that was never attached to anyone (cancelled or replaced). */
+adminRouter.post(
+  "/uploads/discard",
+  asyncHandler(async (req, res) => {
+    const { kind, publicId } = uploadDiscardInput.parse(req.body);
+    if (!isOurPublicId(publicId)) throw new AppError(400, "Not one of our files");
+    const inUse =
+      (await Participant.exists({ $or: [{ "portrait.publicId": publicId }, { "video.publicId": publicId }] })) ||
+      (await Settings.exists({ "heroImage.publicId": publicId }));
+    if (inUse) throw new AppError(409, "That file is in use");
+    await deleteAsset({ url: "", publicId }, kind);
+    res.json({ ok: true });
+  }),
+);
 
 adminRouter.get(
   "/participants",
