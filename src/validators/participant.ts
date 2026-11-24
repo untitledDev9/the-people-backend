@@ -41,6 +41,8 @@ export const settingsInput = z.object({
   description: z.string().trim().min(1).max(3000),
   aboutText: z.string().trim().min(1).max(10000),
   contactEmail: z.union([z.literal(""), z.string().trim().email("Enter a valid email")]).default(""),
+  whatsapp: phoneOrEmpty(),
+  phone: phoneOrEmpty(),
   tiktok: urlOrEmpty(),
   instagram: urlOrEmpty(),
   youtube: urlOrEmpty(),
@@ -59,6 +61,16 @@ export const settingsInput = z.object({
     .pipe(z.array(z.number().int().min(1)).max(12, "At most 12 featured participants")),
   removeHeroImage: bool.optional().default(false),
 });
+
+// International format preferred, e.g. +2349091324697. Digits, spaces, dashes and brackets allowed.
+function phoneOrEmpty() {
+  return z
+    .string()
+    .trim()
+    .regex(/^([+]?[0-9][0-9 ()-]{6,24})?$/, "Enter a valid phone number")
+    .optional()
+    .default("");
+}
 
 function urlOrEmpty() {
   return z

@@ -23,6 +23,8 @@ function shape(s: any) {
     description: s.description ?? DEFAULT_SETTINGS.description,
     aboutText: s.aboutText ?? DEFAULT_SETTINGS.aboutText,
     contactEmail: s.contactEmail ?? "",
+    whatsapp: s.whatsapp ?? "",
+    phone: s.phone ?? "",
     socialLinks: {
       tiktok: s.socialLinks?.tiktok ?? "",
       instagram: s.socialLinks?.instagram ?? "",
@@ -72,6 +74,8 @@ export async function updateSettings(input: z.infer<typeof settingsInput>, hero?
     description: input.description,
     aboutText: input.aboutText,
     contactEmail: input.contactEmail,
+    whatsapp: input.whatsapp,
+    phone: input.phone,
     "socialLinks.tiktok": input.tiktok,
     "socialLinks.instagram": input.instagram,
     "socialLinks.youtube": input.youtube,

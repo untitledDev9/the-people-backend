@@ -9,6 +9,8 @@ export const DEFAULT_SETTINGS = {
   aboutText:
     "The 5,000 People Project is a personal social experiment. I'm meeting 5,000 unique people, one introduction at a time, and documenting each one.\n\nNo scripts. No expectations. Just real people and real connections.\n\nEveryone featured here has agreed to be shared. If you'd like to be removed at any time, get in touch and your profile comes down.",
   contactEmail: "",
+  whatsapp: "",
+  phone: "",
   socialLinks: { tiktok: "", instagram: "", youtube: "" },
   heroImage: null as { url: string; publicId: string } | null,
   featuredParticipants: [] as number[],
@@ -25,6 +27,8 @@ const settingsSchema = new Schema(
     description: { type: String, default: DEFAULT_SETTINGS.description, maxlength: 3000 },
     aboutText: { type: String, default: DEFAULT_SETTINGS.aboutText, maxlength: 10000 },
     contactEmail: { type: String, default: "", maxlength: 200 },
+    whatsapp: { type: String, default: "", maxlength: 30 },
+    phone: { type: String, default: "", maxlength: 30 },
     socialLinks: {
       tiktok: { type: String, default: "" },
       instagram: { type: String, default: "" },
