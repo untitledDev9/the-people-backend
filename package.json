@@ -13,6 +13,13 @@
     "seed:demo:remove": "tsx src/scripts/seedDemo.ts --remove"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
@@ -23,17 +30,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.12.2",
     "multer": "^2.5.0",
-    "zod": "^4.6.7"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cookie-parser": "^1.4.10",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/multer": "^2.3.0",
-    "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "zod": "^4.6.7"
   }
 }
