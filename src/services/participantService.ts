@@ -151,7 +151,8 @@ async function slotInfo() {
 
 export async function getSlots() {
   const { seq, vacant } = await slotInfo();
-  return { next: vacant[0] ?? seq + 1, vacant };
+  // `seq` is the highest number ever handed out; numbers after the empty ones continue from seq + 1.
+  return { next: vacant[0] ?? seq + 1, vacant, seq };
 }
 
 /** Creates a participant in the lowest empty slot (or the next new number). Retries on a rare race. */
